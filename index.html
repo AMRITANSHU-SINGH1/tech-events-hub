@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Tech Events Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F9FAFB;
+        }
+        .event-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #374151;
+        }
+        .event-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        .new-event-badge {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1F2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4B5563;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6B7280;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-white">Offline Tech Events Hub</h1>
+            <p class="mt-3 text-lg text-gray-400">Your central place for tech events from across the industry.</p>
+        </header>
+
+        <!-- Search and Filter -->
+        <div class="mb-8">
+            <input type="text" id="searchInput" placeholder="Search by event name, organizer, or location..." class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- Events Grid -->
+        <main id="eventsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Event cards will be injected here by JavaScript -->
+        </main>
+        
+        <!-- No results message -->
+        <div id="noResults" class="hidden text-center py-16">
+            <h3 class="text-2xl font-semibold text-white">No Events Found</h3>
+            <p class="text-gray-400 mt-2">Try adjusting your search query.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA SOURCE ---
+        // In a real-world application, this data would come from multiple APIs.
+        // Here, we use a static array to demonstrate the functionality.
+        const initialEvents = [
+            {
+                name: "Google I/O Connect",
+                organizer: "Google for Developers",
+                location: "Bengaluru",
+                date: "2025-08-15",
+                url: "https://io.google/connect/",
+                category: "Google"
+            },
+            {
+                name: "Microsoft Build: After Party",
+                organizer: "Microsoft",
+                location: "Hyderabad",
+                date: "2025-09-05",
+                url: "https://www.microsoft.com/en-us/build",
+                category: "Microsoft"
+            },
+            {
+                name: "DevFest India",
+                organizer: "Google Developer Groups",
+                location: "Multiple Cities",
+                date: "2025-10-20",
+                url: "https://devfestindia.com/",
+                category: "Google"
+            },
+            {
+                name: "The AI Conference",
+                organizer: "TechCrunch",
+                location: "San Francisco",
+                date: "2025-09-18",
+                url: "https://techcrunch.com/events/tc-sessions-ai-2025/",
+                category: "MNC"
+            },
+            {
+                name: "Web Development Summit",
+                organizer: "Meetup.com",
+                location: "Pune",
+                date: "2025-08-22",
+                url: "https://www.meetup.com/find/tech/",
+                category: "Meetup"
+            },
+            {
+                name: "AWS Community Day",
+                organizer: "AWS User Group",
+                location: "Chennai",
+                date: "2025-11-12",
+                url: "https://aws.amazon.com/events/community-day/",
+                category: "MNC"
+            },
+        ];
+
+        // --- "INSTANT UPDATE" SIMULATION DATA ---
+        // These events will be added dynamically to simulate real-time updates.
+        const newEventsPool = [
+            {
+                name: "GitHub Universe Watch Party",
+                organizer: "GitHub",
+                location: "Mumbai",
+                date: "2025-11-02",
+                url: "https://githubuniverse.com/",
+                category: "MNC"
+            },
+            {
+                name: "Data Science & ML Workshop",
+                organizer: "Meetup.com",
+                location: "Noida",
+                date: "2025-09-30",
+                url: "https://www.meetup.com/find/data-science/",
+                category: "Meetup"
+            },
+            {
+                name: "Android Developer Day",
+                organizer: "Google Developer Groups",
+                location: "Kolkata",
+                date: "2025-12-01",
+                url: "https://developers.google.com/community/gdg",
+                category: "Google"
+            },
+            {
+                name: "Azure Fundamentals",
+                organizer: "Microsoft",
+                location: "Bengaluru",
+                date: "2025-10-10",
+                url: "https://azure.microsoft.com/en-in/community/events/",
+                category: "Microsoft"
+            }
+        ];
+
+        let allEvents = [...initialEvents];
+
+        const eventsGrid = document.getElementById('eventsGrid');
+        const searchInput = document.getElementById('searchInput');
+        const noResults = document.getElementById('noResults');
+
+        // --- FUNCTIONS ---
+
+        /**
+         * Creates an HTML element for a single event card.
+         * @param {object} event - The event data.
+         * @param {boolean} isNew - If the event is newly added.
+         * @returns {HTMLElement} - The event card element.
+         */
+        const createEventCard = (event, isNew = false) => {
+            const card = document.createElement('a');
+            card.href = event.url;
+            card.target = "_blank"; // Open in new tab
+            card.rel = "noopener noreferrer";
+            card.className = "event-card bg-gray-800 rounded-lg p-5 flex flex-col justify-between hover:bg-gray-700";
+            
+            // Get organizer logo
+            const getLogo = (category) => {
+                switch(category) {
+                    case 'Google': return `<img src="https://placehold.co/40x40/EA4335/FFFFFF?text=G" alt="Google" class="w-10 h-10 rounded-full">`;
+                    case 'Microsoft': return `<img src="https://placehold.co/40x40/00A4EF/FFFFFF?text=M" alt="Microsoft" class="w-10 h-10 rounded-full">`;
+                    case 'Meetup': return `<img src="https://placehold.co/40x40/E51937/FFFFFF?text=M" alt="Meetup" class="w-10 h-10 rounded-full">`;
+                    default: return `<img src="https://placehold.co/40x40/4B5563/FFFFFF?text=T" alt="Tech" class="w-10 h-10 rounded-full">`;
+                }
+            };
+
+            card.innerHTML = `
+                <div class="relative">
+                    <div class="flex items-start justify-between">
+                        ${getLogo(event.category)}
+                        ${isNew ? '<span class="new-event-badge absolute top-0 right-0 text-xs bg-red-500 text-white font-bold py-1 px-2 rounded-full">NEW</span>' : ''}
+                    </div>
+                    <h3 class="text-xl font-bold mt-4 text-white">${event.name}</h3>
+                    <p class="text-sm text-gray-400 mt-1">by ${event.organizer}</p>
+                </div>
+                <div class="mt-4">
+                    <p class="text-sm text-gray-300"><span class="font-semibold">Date:</span> ${new Date(event.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p class="text-sm text-gray-300"><span class="font-semibold">Location:</span> ${event.location}</p>
+                </div>
+            `;
+            return card;
+        };
+
+        /**
+         * Renders a list of events to the grid.
+         * @param {array} eventsToRender - The array of events to display.
+         */
+        const renderEvents = (eventsToRender) => {
+            eventsGrid.innerHTML = ''; // Clear existing events
+            if (eventsToRender.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                eventsToRender.forEach(event => {
+                    const card = createEventCard(event);
+                    eventsGrid.appendChild(card);
+                });
+            }
+        };
+        
+        /**
+         * Filters events based on the search input.
+         */
+        const filterEvents = () => {
+            const query = searchInput.value.toLowerCase();
+            const filteredEvents = allEvents.filter(event => 
+                event.name.toLowerCase().includes(query) ||
+                event.organizer.toLowerCase().includes(query) ||
+                event.location.toLowerCase().includes(query)
+            );
+            renderEvents(filteredEvents);
+        };
+
+        /**
+         * Simulates adding a new event in real-time.
+         */
+        const simulateRealTimeUpdate = () => {
+            if (newEventsPool.length > 0) {
+                const newEvent = newEventsPool.shift(); // Get the next event from the pool
+                allEvents.unshift(newEvent); // Add to the beginning of the main list
+                
+                // Only add to view if it matches current search filter
+                const query = searchInput.value.toLowerCase();
+                if (newEvent.name.toLowerCase().includes(query) || newEvent.organizer.toLowerCase().includes(query) || newEvent.location.toLowerCase().includes(query)) {
+                    const card = createEventCard(newEvent, true);
+                    eventsGrid.insertBefore(card, eventsGrid.firstChild);
+                    card.style.animation = 'fadeIn 0.5s ease-in-out';
+                }
+            } else {
+                // Stop the interval if no new events are left to add
+                clearInterval(realTimeInterval);
+            }
+        };
+
+        // --- INITIALIZATION ---
+
+        // Add a simple fade-in animation for the cards
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerText = `@keyframes fadeIn { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }`;
+        document.head.appendChild(styleSheet);
+
+
+        // Initial render of events
+        renderEvents(allEvents);
+
+        // Event listener for the search input
+        searchInput.addEventListener('input', filterEvents);
+
+        // Start the real-time update simulation (adds a new event every 7 seconds)
+        const realTimeInterval = setInterval(simulateRealTimeUpdate, 7000);
+
+    </script>
+</body>
+</html>
